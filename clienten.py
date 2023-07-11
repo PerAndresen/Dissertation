@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Flower")
     parser.add_argument("--cid", type=str,required=True)
-    parser.add_argument("--server_address", type=str)
+    parser.add_argument("--server_address", type=str, default="0.0.0.0:8080")
     args = parser.parse_args()
     cid = args.cid
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             return loss, len(X_test), {"accuracy": accuracy}
         
     client = LogisticRegressionClient()
-    fl.client.start_numpy_client(server_address="0.0.0.0:8080", client=client)
+    fl.client.start_numpy_client(server_address=args.server_address, client=client)
 
 
     """Load data, create and start client."""

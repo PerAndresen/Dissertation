@@ -11,7 +11,15 @@ import torchvision
 from typing import Callable, Dict, Optional, Tuple
 from sklearn.metrics import accuracy_score, log_loss
 from flwr.common import Scalar, NDArrays
+import socket
 
+def get_server_ip():
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+    return ip_address
+
+server_ip = get_server_ip()
+print("Server IP: "+str(server_ip))
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -20,6 +28,7 @@ parser.add_argument('--rounds', type=int, default=1)
 parser.add_argument('--clients', type=int, default=2)
 parser.add_argument('--min_sample_size', type=int, default=2)
 parser.add_argument('--sample_fraction', type=float, default=1.0)
+parser.add_argument('--server_address', type=str, default="0.0.0.0:8080")
 args = parser.parse_args()
 
 def fit_round(rnd: int)-> Dict:
@@ -52,7 +61,8 @@ def main() -> None:
     )
     server = fl.server.Server(client_manager=client_manager, strategy=strategy)
     fl.server.start_server(
-        server_address="0.0.0.0:8080", 
+        #server_address=server_ip+":8080",
+        server_address=args.server_address, 
         server=server,
         config=fl.server.ServerConfig(num_rounds=args.rounds))
 
