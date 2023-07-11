@@ -73,7 +73,7 @@ if __name__ == "__main__":
             return loss, len(X_test), {"accuracy": accuracy}
         
     client = LogisticRegressionClient()
-    fl.client.start_numpy_client(server_address="0.0.0.0:8080", client=client)
+    fl.client.start_numpy_client(server_address=args.server_address, client=client)
 
 
     """Load data, create and start client."""
