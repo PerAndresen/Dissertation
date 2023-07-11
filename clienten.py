@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Flower")
     parser.add_argument("--cid", type=str,required=True)
-    parser.add_argument("--server_address", type=str)
+    parser.add_argument("--server_address", type=str, default="0.0.0.0:8080")
     args = parser.parse_args()
     cid = args.cid
 
