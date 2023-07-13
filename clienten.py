@@ -29,22 +29,25 @@ num_rounds = 5
 XY = Tuple[np.ndarray, np.ndarray]
 LogRegParams = Union[XY, Tuple[np.ndarray]]
 
+def split_data(X,y, num_clients, client_id):
+    data_size = len(X)
+    idxs = np.array(range(data_size))
+    assert data_size % num_clients == 0
+    idxs_splits = np.array_split(idxs, num_clients)
+    client_idxs = idxs_splits[client_id]
+    return X[client_idxs], y[client_idxs]
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Flower")
     parser.add_argument("--cid", type=str,required=True)
     parser.add_argument("--server_address", type=str, default="0.0.0.0:8080")
+    parser.add_argument("--num_clients", type=int, required=True)
     args = parser.parse_args()
     cid = args.cid
 
     (X_train, y_train), (X_test, y_test) = utils.load_data()
-    #num_partitions = 5
-    #partition_id = np.random.choice(num_partitions)
-    #partitions = utils.partition_data(X_train, y_train, num_partitions)
-    #if partition_id < len(partitions):
-    #    (X_train, y_train) = partitions[partition_id]
-    #else:
-    #    print("Invalid partition id, using all data for training")
+    X_train, y_train = split_data(X_train, y_train, num_clients, cid)
     model = LogisticRegression(random_state=0, max_iter=1, penalty="l2", warm_start=True)
     utils.set_initial_params(model)
 

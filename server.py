@@ -24,7 +24,7 @@ print("Server IP: "+str(server_ip))
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser(description='Federated Learning')
-parser.add_argument('--rounds', type=int, default=1)
+parser.add_argument('--rounds', type=int, default=20)
 parser.add_argument('--clients', type=int, default=2)
 parser.add_argument('--min_sample_size', type=int, default=2)
 parser.add_argument('--sample_fraction', type=float, default=1.0)
