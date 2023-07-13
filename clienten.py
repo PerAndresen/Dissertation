@@ -31,16 +31,27 @@ LogRegParams = Union[XY, Tuple[np.ndarray]]
 
 def split_data(X,y, num_clients, client_id):
     data_size = len(X)
+    size_per_client = data_size // num_clients
+    remainder = data_size % num_clients
+    start = client_id * size_per_client
+    end = start + size_per_client
+
+    if client_id < remainder:
+        end += 1
+    
+    return X[start:end], y[start:end]
+
+    '''
     idxs = np.array(range(data_size))
     assert data_size % num_clients == 0
     idxs_splits = np.array_split(idxs, num_clients)
     client_idxs = idxs_splits[client_id]
     return X[client_idxs], y[client_idxs]
-
+    '''
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Flower")
-    parser.add_argument("--cid", type=str,required=True)
+    parser.add_argument("--cid", type=int,required=True)
     parser.add_argument("--server_address", type=str, default="0.0.0.0:8080")
     parser.add_argument("--num_clients", type=int, required=True)
     args = parser.parse_args()
