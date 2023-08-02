@@ -314,7 +314,8 @@ def main() -> None:
         #num_samples=args.clients,
         #server_address=server_ip+":8080",
         server_address=args.server_address, 
-        server=server,
+        #server=server,
+        client_manager = client_manager,
         config=fl.server.ServerConfig(num_rounds=args.rounds),
         strategy= sa_strategy
         )

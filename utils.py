@@ -8,7 +8,8 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from sklearn.linear_model import LogisticRegression
 from typing import Tuple, Union, List
-
+import json
+import base64
 
 XY = Tuple[np.ndarray, np.ndarray]
 Dataset = Tuple[XY, XY]
@@ -108,8 +109,8 @@ def load_datasets(n_partitions: int, valid_fraction: float):
 """Provided by Heng Pan working for Flower """
 """Demo code for Secure Aggregation"""
 import base64
-from crypto.Util.Padding import pad, unpad
-from crypto.Protocol.SecretSharing import Shamir
+from Crypto.Util.Padding import pad, unpad
+from Crypto.Protocol.SecretSharing import Shamir
 from concurrent.futures import ThreadPoolExecutor
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -138,12 +139,38 @@ def empty_parameters():
 
 
 def save_content(content, d: Dict[str, Scalar]) -> Dict[str, Scalar]:
-    d['content'] = pickle.dumps(content)
+    print("Type of content: ", type(content))
+    print("Content: ", content)
+    if isinstance(content, bytes):
+        content = base64.b64encode(content).decode('utf-8')
+        d['content'] = json.dumps(content)
+    else:
+        serialized_keys = []
+        for key in content:
+            if isinstance(key, int):
+                # Convert the integer to bytes and then base64 encode
+                serialized_key = base64.b64encode(key.to_bytes(32, byteorder='big')).decode()
+            else:
+                # Assuming key is a bytes-like object
+                serialized_key = base64.b64encode(key).decode()
+            serialized_keys.append(serialized_key)
+        d['content'] = json.dumps(serialized_keys)
     return d
 
 
 def load_content(d: Dict[str, Scalar]):
-    return pickle.loads(d.pop('content'))
+    content = json.loads(d.pop('content'))
+    print("Original content:", content)
+    if isinstance(content,str):
+        try:
+            content = base64.b64decode(content.encode('utf-8'))
+        except binascii.error:
+            pass
+    else: 
+        content = content
+    print("Final content:", content)
+    print("Type of content:", type(content))
+    return content
 
 
 def build_fit_ins(content, stage: int, server_round: int, parameters: Optional[Parameters] = None) -> FitIns:

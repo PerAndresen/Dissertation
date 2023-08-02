@@ -12,7 +12,8 @@ import timeit
 from typing import Tuple, List, Optional, Callable, Dict, Union
 from logging import INFO, ERROR, WARNING
 from flwr.common.logger import log
-from pathlib import Path
+from pathlib import Path, PosixPath
+import json
 
 
 
@@ -66,7 +67,7 @@ if __name__ == "__main__":
     class LogisticRegressionClient(fl.client.NumPyClient):
         def __init__(self,cid):
             self.cid = cid
-            self.cache_pth = Path('cache'+str(cid)+'.pth')
+            self.cache_pth = Path('cache'+str(cid)+'.json')
 
 
         def get_parameters(self,config):
@@ -78,11 +79,13 @@ if __name__ == "__main__":
             stage = config.pop('stage')
             ret = 0
             ndarrays = []
+            print("Config before load_content:", config)
             print("Client "+str(cid)+" is training")
             if stage == 0:
                 ret = setup_param(self,config)
                 #set_model_params(model, parameters)
             elif stage == 1:
+                print("type of load content:"+str(type(load_content(config))))
                 ret = share_keys(self, load_content(config))
             elif stage == 2:
                 packet_lst, fit_ins = load_content(config)
@@ -107,17 +110,33 @@ if __name__ == "__main__":
         """Provided by Heng Pan working for Flower """
         """Demo code for Secure Aggregation"""
         def get_vars(self):
-            return vars(self)
-        
+        # Convert the relevant attributes to a JSON-serializable format
+            serializable_vars = {}
+            for key, value in vars(self).items():
+                if key not in ['model', 'other_non_serializable_attributes']:
+                    if isinstance(value, PosixPath):
+                        serializable_vars[key] = str(value)
+                else:
+                    serializable_vars[key] = value
+            return serializable_vars
+
         def cache(self):
-            with open(self.cache_pth, "wb") as f:
-                pickle.dump(self.get_vars, f)
-        
+            with open(self.cache_pth, "w") as f:
+                json.dump(self.get_vars(), f)
+
         def reload(self):
-            if self.cache_pth.exists():
+            try:
+            
                 log(INFO, f'CID {self.cid} reloading from {str(self.cache_pth)}')
-                with open(self.cache_pth, 'rb') as f:
-                    self.__dict__.update(pickle.load(f))
+                with open(self.cache_pth, 'r',encoding='utf-8') as f:
+                    loaded_data = json.load(f)
+                self.__dict__.update(loaded_data)
+            except FileNotFoundError:
+                print("Cache file not found")
+            except json.JSONDecodeError as e:
+                print(f"An error occurred while reading the JSON file: {e}")
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
 
 
 """Helper functions for encryption and arithmetics in Secure Aggregation"""
@@ -164,6 +183,8 @@ def share_keys(client, share_keys_dict: Dict[int, Tuple[bytes, bytes]]) -> List[
     log(INFO, f'Client {client.sec_agg_id}: starting stage 1...')
     # Distribute shares for private mask seed and first private key
     # share_keys_dict:
+    print("Type of share_keys_dict:", type(share_keys_dict))
+    print("Content of share_keys_dict:", share_keys_dict)
     client.public_keys_dict = share_keys_dict
     # check size is larger than threshold
     if len(client.public_keys_dict) < client.threshold:
@@ -256,7 +277,7 @@ def ask_vectors(client, packet_list, fit_ins) -> Parameters:
     with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 model.fit(X_train, y_train)
-                print("Training finished for round"+str(fit_ins["rnd"]))
+                print("Training finished for round"+str(fit_ins.config['server_rnd']))
     
     parameters = get_model_parameters(model)
     fit_res = FitRes(parameters, len(X_train), {})
