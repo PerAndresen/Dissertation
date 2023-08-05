@@ -7,7 +7,7 @@ import sklearn
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from sklearn.linear_model import LogisticRegression
-from typing import Tuple, Union, List
+from typing import Any, Tuple, Union, List
 import json
 import base64
 
@@ -19,6 +19,8 @@ XYList = List[XY]
 
 def get_model_parameters(model: LogisticRegression) -> LogRegParams:
     #Get the weights of the model
+    if not hasattr(model, "coef_"):
+        raise ValueError("Cannot get parameters of untrained model")
     if model.fit_intercept:
         params = [model.coef_, 
                   model.intercept_
@@ -29,9 +31,17 @@ def get_model_parameters(model: LogisticRegression) -> LogRegParams:
 
 def set_model_params(model: LogisticRegression, params: LogRegParams)->LogisticRegression:
     #Set the weights of the model
+    #print("coef",coef)
+    #print(type(coef))
+    #print("inter",inter)
+    #print(type(inter))
     model.coef_ = params[0]
     if model.fit_intercept:
         model.intercept_ = params[1]
+    #print(params[2])
+    #print(type(params[2]))
+    #print(params[2].shape)
+    #model.classes_ = params[2]
     return model
     
 def set_initial_params(model: LogisticRegression):
@@ -54,10 +64,10 @@ def load_data() -> Dataset:
     X = df.iloc[:, :186].values
     #Y values should be from row 187
     y = df.iloc[:, 187].values
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    trainset = (X_train,y_train)
-    testset = (X_test, y_test)
-    return trainset, testset
+    #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    #trainset = (X_train,y_train)
+    #testset = (X_test, y_test)
+    return X, y
 
 def shuffle(X: np.ndarray, y: np.ndarray) -> XY:
     """Shuffle X and y."""
@@ -139,6 +149,20 @@ def empty_parameters():
 
 
 def save_content(content, d: Dict[str, Scalar]) -> Dict[str, Scalar]:
+    #print("save content dict: "+ str(d.values()))
+    d['content'] = pickle.dumps(content)
+    return d
+
+
+def load_content(d: Dict[str, Scalar]):
+    #print("load content dict: "+ str(d.values()))
+    if 'content' in d:
+        return pickle.loads(d.pop('content'))
+    else:
+        raise KeyError("No content in the dictionary")
+
+'''
+def save_content(content, d: Dict[str, Scalar]) -> Dict[str, Scalar]:
     print("Type of content: ", type(content))
     print("Content: ", content)
     if isinstance(content, bytes):
@@ -157,21 +181,27 @@ def save_content(content, d: Dict[str, Scalar]) -> Dict[str, Scalar]:
         d['content'] = json.dumps(serialized_keys)
     return d
 
+'''
 
-def load_content(d: Dict[str, Scalar]):
-    content = json.loads(d.pop('content'))
-    print("Original content:", content)
-    if isinstance(content,str):
-        try:
-            content = base64.b64decode(content.encode('utf-8'))
-        except binascii.error:
-            pass
-    else: 
-        content = content
-    print("Final content:", content)
-    print("Type of content:", type(content))
-    return content
 
+
+'''
+def load_content(d: Dict[str, Scalar]) -> Dict[str, Any]:
+    print("dict: "+ str(d.values()))
+    content_base64 = d.pop('content')
+    #return content_base64
+    print("Type of content_base64: ", type(content_base64))
+    print("Content_base64: ", content_base64)
+    content_json = base64.b64decode(content_base64).decode('utf-8')
+    print("Type of content_json: ", type(content_json))
+    print("Content_json: ", content_json)
+    #content = json.loads(content_json)
+    content = base64.b64decode(content_base64).decode('utf-8') if isinstance(content_base64, str) else content_base64
+    print("content after json.loads: ", content)
+    d['content'] = content
+    return d
+
+'''
 
 def build_fit_ins(content, stage: int, server_round: int, parameters: Optional[Parameters] = None) -> FitIns:
     cfg = save_content(content, {

@@ -36,15 +36,20 @@ LogRegParams = Union[XY, Tuple[np.ndarray]]
 weight = 10
 
 def split_data(X,y, num_clients, client_id):
+    client_id -= 1
     data_size = len(X)
     size_per_client = data_size // num_clients
     remainder = data_size % num_clients
     start = client_id * size_per_client
-    end = start + size_per_client
+    end = (client_id + 1) * size_per_client if client_id < num_clients - 1 else data_size
 
     if client_id < remainder:
-        end += 1
-    
+        start += client_id
+        end += client_id + 1
+    else: 
+        start+= remainder
+        end+=remainder
+
     return X[start:end], y[start:end]
 
 if __name__ == "__main__":
@@ -56,39 +61,50 @@ if __name__ == "__main__":
     args = parser.parse_args()
     cid = args.cid
 
-    (X_train, y_train), (X_test, y_test) = load_data()
-    X_train, y_train = split_data(X_train, y_train, num_clients, cid)
-    model = LogisticRegression(random_state=0, max_iter=1, penalty="l2", warm_start=True)
+    X, y = load_data()
+    X_partition, y_partition= split_data(X, y, num_clients, cid)
+    X_train, X_test, y_train, y_test = train_test_split(X_partition, y_partition, test_size=0.2)
+    unique, counts = np.unique(y_train, return_counts=True)
+    print("Train label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
+    unique, counts = np.unique(y_test, return_counts=True)
+    print("Test label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
+    model = LogisticRegression(random_state=0, max_iter=1000, penalty="l2", warm_start=True)
     set_initial_params(model)
 
 
 
 
     class LogisticRegressionClient(fl.client.NumPyClient):
-        def __init__(self,cid):
+        def __init__(self,cid, data_dir: Path):
             self.cid = cid
-            self.cache_pth = Path('cache'+str(cid)+'.json')
+            #self.cache_pth = Path('cache'+str(cid)+'.json')
+            self.cache_pth = data_dir / f'{cid}.pth'
 
 
         def get_parameters(self,config):
             print("Client "+str(cid)+" is getting parameters")
             return get_model_parameters(model)
     
-        def fit(self,parameters,config):
+        def fit(self,parameters,config:Dict[str,Scalar]):
             self.reload()
             stage = config.pop('stage')
+            server_rnd = config.pop('server_rnd')
             ret = 0
             ndarrays = []
-            print("Config before load_content:", config)
-            print("Client "+str(cid)+" is training")
+            #print("Config before load_content:", config)
+            #print("Client "+str(cid)+" is training")
             if stage == 0:
                 ret = setup_param(self,config)
                 #set_model_params(model, parameters)
             elif stage == 1:
-                print("type of load content:"+str(type(load_content(config))))
+                #print("type of load content:"+str(type(load_content(config))))
+                #print("content of load content:"+str(load_content(config)))
                 ret = share_keys(self, load_content(config))
             elif stage == 2:
+                #print("Stage 2")
                 packet_lst, fit_ins = load_content(config)
+                #print("Packet list:", packet_lst)
+                #print("Fit ins:", fit_ins)
                 ndarrays = ask_vectors(self, packet_lst, fit_ins)
             elif stage == 3:
                 available_clients, dropout_clients = load_content(config)
@@ -97,18 +113,39 @@ if __name__ == "__main__":
                 warnings.simplefilter("ignore")
                 model.fit(X_train, y_train)
                 print("Training finished for round"+str(config["rnd"]))'''
+            print("Client "+str(cid)+" is training")
+            result = self.evaluate(parameters,config)
+            print("Result "+str(cid)+" " +str(result))
             self.cache()
             return ndarrays, 0, save_content(ret,{})
             #return get_model_parameters(model), len(X_train), {}
     
         def evaluate(self,parameters,config):
-            set_model_params(model, parameters)
-            loss = log_loss(y_test, model.predict_proba(X_test))
-            accuracy = model.score(X_test, y_test)
+            model_with_parameters = set_model_params(model, get_model_parameters(model))
+            loss = log_loss(y_test, model_with_parameters.predict_proba(X_test))
+            accuracy = model_with_parameters.score(X_test, y_test)
             return loss, len(X_test), {"accuracy": accuracy}
         """Helper functions for encryption and arithmetics in Secure Aggregation"""
         """Provided by Heng Pan working for Flower """
         """Demo code for Secure Aggregation"""
+        def get_vars(self):
+            return vars(self)
+
+        def cache(self):
+        # for k, v in vars(self).items():
+        #     logger.info(f"client {self.cid}: saving {k}")
+        #     torch.save(v, self.cache_pth)
+            os.makedirs(os.path.dirname(self.cache_pth), exist_ok=True)
+            with open(self.cache_pth, 'wb') as f:
+                pickle.dump(self.get_vars(), f)
+        # torch.save(vars(self), self.cache_pth)
+
+        def reload(self):
+            if self.cache_pth.exists():
+                log(INFO, f'CID {self.cid} reloading from {str(self.cache_pth)}')
+                with open(self.cache_pth, 'rb') as f:
+                    self.__dict__.update(pickle.load(f))
+        '''
         def get_vars(self):
         # Convert the relevant attributes to a JSON-serializable format
             serializable_vars = {}
@@ -119,7 +156,8 @@ if __name__ == "__main__":
                 else:
                     serializable_vars[key] = value
             return serializable_vars
-
+        '''
+        '''
         def cache(self):
             with open(self.cache_pth, "w") as f:
                 json.dump(self.get_vars(), f)
@@ -137,6 +175,7 @@ if __name__ == "__main__":
                 print(f"An error occurred while reading the JSON file: {e}")
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
+        '''
 
 
 """Helper functions for encryption and arithmetics in Secure Aggregation"""
@@ -183,8 +222,8 @@ def share_keys(client, share_keys_dict: Dict[int, Tuple[bytes, bytes]]) -> List[
     log(INFO, f'Client {client.sec_agg_id}: starting stage 1...')
     # Distribute shares for private mask seed and first private key
     # share_keys_dict:
-    print("Type of share_keys_dict:", type(share_keys_dict))
-    print("Content of share_keys_dict:", share_keys_dict)
+    #print("Type of share_keys_dict:", type(share_keys_dict))
+    #print("Content of share_keys_dict:", share_keys_dict)
     client.public_keys_dict = share_keys_dict
     # check size is larger than threshold
     if len(client.public_keys_dict) < client.threshold:
@@ -277,10 +316,17 @@ def ask_vectors(client, packet_list, fit_ins) -> Parameters:
     with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 model.fit(X_train, y_train)
-                print("Training finished for round"+str(fit_ins.config['server_rnd']))
-    
+                #print("Training finished for round"+str(fit_ins.config['server_rnd']))
+    #loss, accuracy = model.evaluate(X_test, y_test)
+    pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, pred)
+    y_pred_prob = model.predict_proba(X_test)
+    loss = log_loss(y_test, y_pred_prob)
+    metrics = {"loss": loss, "accuracy": accuracy}
+    #print("Metrics:", metrics)
     parameters = get_model_parameters(model)
-    fit_res = FitRes(parameters, len(X_train), {})
+    fit_res = FitRes(parameters, len(X_train), {}, metrics)
+    #print("Fit result:", fit_res)
     weights_factor = fit_res.num_examples
     
 
@@ -317,6 +363,8 @@ def ask_vectors(client, packet_list, fit_ins) -> Parameters:
     quantized_weights = weights_mod(quantized_weights, client.mod_range)
     # return ndarrays_to_parameters(quantized_weights)
     log(INFO, f'Client {client.sec_agg_id}: stage 2 completes. uploading masked weights...')
+    #print("Quantized weights:", quantized_weights)
+    #print("Shape of quantized weights:", quantized_weights[1].shape)
     return quantized_weights
 
 
@@ -333,5 +381,5 @@ def unmask_vectors(client, available_clients, dropout_clients) -> Dict[int, byte
     return share_dict
 
 
-client = LogisticRegressionClient(args.cid)
+client = LogisticRegressionClient(args.cid, Path('./client_data'))
 fl.client.start_numpy_client(server_address=args.server_address, client=client)
