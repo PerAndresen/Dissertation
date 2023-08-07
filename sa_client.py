@@ -14,6 +14,13 @@ from logging import INFO, ERROR, WARNING
 from flwr.common.logger import log
 from pathlib import Path, PosixPath
 import json
+import psutil
+
+cpu_percent = psutil.cpu_percent()
+print("CPU percent:", cpu_percent)
+memory_percent = psutil.virtual_memory().percent
+print("Memory percent:", memory_percent)
+
 
 
 
@@ -145,38 +152,6 @@ if __name__ == "__main__":
                 log(INFO, f'CID {self.cid} reloading from {str(self.cache_pth)}')
                 with open(self.cache_pth, 'rb') as f:
                     self.__dict__.update(pickle.load(f))
-        '''
-        def get_vars(self):
-        # Convert the relevant attributes to a JSON-serializable format
-            serializable_vars = {}
-            for key, value in vars(self).items():
-                if key not in ['model', 'other_non_serializable_attributes']:
-                    if isinstance(value, PosixPath):
-                        serializable_vars[key] = str(value)
-                else:
-                    serializable_vars[key] = value
-            return serializable_vars
-        '''
-        '''
-        def cache(self):
-            with open(self.cache_pth, "w") as f:
-                json.dump(self.get_vars(), f)
-
-        def reload(self):
-            try:
-            
-                log(INFO, f'CID {self.cid} reloading from {str(self.cache_pth)}')
-                with open(self.cache_pth, 'r',encoding='utf-8') as f:
-                    loaded_data = json.load(f)
-                self.__dict__.update(loaded_data)
-            except FileNotFoundError:
-                print("Cache file not found")
-            except json.JSONDecodeError as e:
-                print(f"An error occurred while reading the JSON file: {e}")
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-        '''
-
 
 """Helper functions for encryption and arithmetics in Secure Aggregation"""
 """Provided by Heng Pan working for Flower """

@@ -161,47 +161,6 @@ def load_content(d: Dict[str, Scalar]):
     else:
         raise KeyError("No content in the dictionary")
 
-'''
-def save_content(content, d: Dict[str, Scalar]) -> Dict[str, Scalar]:
-    print("Type of content: ", type(content))
-    print("Content: ", content)
-    if isinstance(content, bytes):
-        content = base64.b64encode(content).decode('utf-8')
-        d['content'] = json.dumps(content)
-    else:
-        serialized_keys = []
-        for key in content:
-            if isinstance(key, int):
-                # Convert the integer to bytes and then base64 encode
-                serialized_key = base64.b64encode(key.to_bytes(32, byteorder='big')).decode()
-            else:
-                # Assuming key is a bytes-like object
-                serialized_key = base64.b64encode(key).decode()
-            serialized_keys.append(serialized_key)
-        d['content'] = json.dumps(serialized_keys)
-    return d
-
-'''
-
-
-
-'''
-def load_content(d: Dict[str, Scalar]) -> Dict[str, Any]:
-    print("dict: "+ str(d.values()))
-    content_base64 = d.pop('content')
-    #return content_base64
-    print("Type of content_base64: ", type(content_base64))
-    print("Content_base64: ", content_base64)
-    content_json = base64.b64decode(content_base64).decode('utf-8')
-    print("Type of content_json: ", type(content_json))
-    print("Content_json: ", content_json)
-    #content = json.loads(content_json)
-    content = base64.b64decode(content_base64).decode('utf-8') if isinstance(content_base64, str) else content_base64
-    print("content after json.loads: ", content)
-    d['content'] = content
-    return d
-
-'''
 
 def build_fit_ins(content, stage: int, server_round: int, parameters: Optional[Parameters] = None) -> FitIns:
     cfg = save_content(content, {
