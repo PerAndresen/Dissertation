@@ -135,8 +135,6 @@ if __name__ == "__main__":
                 model.fit(X_train, y_train)
                 print("Training finished for round"+str(config["rnd"]))'''
             #print("Client "+str(cid)+" is training")
-            result = self.evaluate(parameters,config)
-            print("Result "+str(cid)+" " +str(result)+" for round "+str(server_rnd))
             self.cache()
             return ndarrays, 0, save_content(ret,{})
             #return get_model_parameters(model), len(X_train), {}
@@ -316,6 +314,8 @@ def ask_vectors(client, packet_list, fit_ins) -> Parameters:
     parameters = get_model_parameters(model)
     fit_res = FitRes(parameters, len(X_train), {}, metrics)
     #print("Fit result:", fit_res)
+    result = LogisticRegressionClient.evaluate(client, parameters,config=fit_ins.config)
+    print("Result "+str(cid)+" " +str(result))
     weights_factor = fit_res.num_examples
     
 
