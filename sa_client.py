@@ -8,18 +8,18 @@ from utils import *
 import tensorflow as tf
 import torch
 from flwr.common import (NDArrays,GetParametersRes, FitIns, EvaluateRes, EvaluateIns, FitRes, Scalar)
-import timeit
 from typing import Tuple, List, Optional, Callable, Dict, Union
 from logging import INFO, ERROR, WARNING
 from flwr.common.logger import log
 from pathlib import Path, PosixPath
 import json
 import psutil
+import time
 
 cpu_percent = psutil.cpu_percent()
-print("CPU percent:", cpu_percent)
+#print("CPU percent:", cpu_percent)
 memory_percent = psutil.virtual_memory().percent
-print("Memory percent:", memory_percent)
+#print("Memory percent:", memory_percent)
 
 
 
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     X_partition, y_partition= split_data(X, y, num_clients, cid)
     X_train, X_test, y_train, y_test = train_test_split(X_partition, y_partition, test_size=0.2)
     unique, counts = np.unique(y_train, return_counts=True)
-    print("Train label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
+    #print("Train label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
     unique, counts = np.unique(y_test, return_counts=True)
-    print("Test label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
+    #print("Test label counts:"+str(args.cid)+" ",dict(zip(unique, counts)))
     model = LogisticRegression(random_state=0, max_iter=1000, penalty="l2", warm_start=True)
     set_initial_params(model)
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
 
         def get_parameters(self,config):
-            print("Client "+str(cid)+" is getting parameters")
+            #print("Client "+str(cid)+" is getting parameters")
             return get_model_parameters(model)
     
         def fit(self,parameters,config:Dict[str,Scalar]):
@@ -101,28 +101,42 @@ if __name__ == "__main__":
             #print("Config before load_content:", config)
             #print("Client "+str(cid)+" is training")
             if stage == 0:
+                start_time_params = time.time()
+
                 ret = setup_param(self,config)
                 #set_model_params(model, parameters)
+                end_time_params = time.time()
+                print("Time for setting up parameters:", end_time_params-start_time_params)
             elif stage == 1:
+                start_time_keys = time.time()
                 #print("type of load content:"+str(type(load_content(config))))
                 #print("content of load content:"+str(load_content(config)))
                 ret = share_keys(self, load_content(config))
+                end_time_keys = time.time()
+                print("Time for sharing keys:", end_time_keys-start_time_keys)
             elif stage == 2:
+                start_time_vectors = time.time()
                 #print("Stage 2")
                 packet_lst, fit_ins = load_content(config)
                 #print("Packet list:", packet_lst)
                 #print("Fit ins:", fit_ins)
                 ndarrays = ask_vectors(self, packet_lst, fit_ins)
+                end_time_vectors = time.time()
+                print("Time for asking vectors and training:", end_time_vectors-start_time_vectors)
             elif stage == 3:
+                start_time_unmask = time.time()
                 available_clients, dropout_clients = load_content(config)
                 ret = unmask_vectors(self, available_clients, dropout_clients)
+                end_time_unmask = time.time()
+                print("Time for unmasking vectors:", end_time_unmask-start_time_unmask)
+                #print("Ret: ", ret)
             '''with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 model.fit(X_train, y_train)
                 print("Training finished for round"+str(config["rnd"]))'''
-            print("Client "+str(cid)+" is training")
+            #print("Client "+str(cid)+" is training")
             result = self.evaluate(parameters,config)
-            print("Result "+str(cid)+" " +str(result))
+            print("Result "+str(cid)+" " +str(result)+" for round "+str(server_rnd))
             self.cache()
             return ndarrays, 0, save_content(ret,{})
             #return get_model_parameters(model), len(X_train), {}

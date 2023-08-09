@@ -49,17 +49,15 @@ def get_evaluate_fn(model: LogisticRegression):
     def evaluate(server_round, parameters: fl.common.NDArrays, config):
         # Update model with the latest parameters
         model_with_parameters = set_model_params(model, parameters)
-        
         unique_classes = np.unique(y)
         model_with_parameters.classes_ = unique_classes
         # Evaluate the updated model on the test data
+        print("X_test", X_test)
         y_pred = model_with_parameters.predict(X_test)
-        model_with_parameters.predict_proba(X_test)
         print("predicitions", y_pred)
         loss = log_loss(y_test, y_pred)
         sk_accuracy = accuracy_score(y_test, y_pred)
-        accuracy = model.score(X_test, y_pred)
-        return loss, {"accuracy": accuracy}
+        return loss, {"accuracy": sk_accuracy}
 
     return evaluate
 
@@ -67,7 +65,7 @@ def get_evaluate_fn(model: LogisticRegression):
 # Start Flower server for five rounds of federated learning
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Federated Learning')
-    parser.add_argument('--rounds', type=int, default=20)
+    parser.add_argument('--rounds', type=int, default=5)
     parser.add_argument('--server_address', type=str, default="0.0.0.0:8080")
     args = parser.parse_args()
 

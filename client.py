@@ -8,14 +8,14 @@ import utils
 import tensorflow as tf
 import tensorflow.keras as keras
 import torch
-from flwr.common import (NDArrays,GetParametersRes, FitIns, EvaluateRes, EvaluateIns, FitRes)
-import timeit
+from flwr.common import (parameters_to_ndarrays, NDArrays,GetParametersRes, FitIns, EvaluateRes, EvaluateIns, FitRes)
 from typing import Tuple, List, Optional, Callable, Dict, Union
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.metrics import classification_report
 from sklearn.model_selection import KFold
+import time
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -24,12 +24,16 @@ num_rounds = 5
 XY = Tuple[np.ndarray, np.ndarray]
 LogRegParams = Union[XY, Tuple[np.ndarray]]
 
-def get_model_parameters(model):
-    #Get the weights of the model
+def get_model_parameters(model: LogisticRegression)->LogRegParams:
+     #Get the weights of the model
+    if not hasattr(model, "coef_"):
+        raise ValueError("Cannot get parameters of untrained model")
     if model.fit_intercept:
-        params = (model.coef_, model.intercept_)
+        params = [model.coef_, 
+                  model.intercept_
+                  ]
     else:
-        params = (model.coef_,)
+        params = [model.coef_]
     return params
 
 def set_model_params(model: LogisticRegression, params: LogRegParams)->LogisticRegression:
@@ -46,9 +50,9 @@ def set_model_params(model: LogisticRegression, params: LogRegParams)->LogisticR
 def set_initial_params(model: LogisticRegression):
     #Set the weights of the model
     n_classes = 2
-    n_features = 187
+    n_features = 186
     model.classes_ = np.array([0,1])
-    model.coef_ = np.zeros((2,187))
+    model.coef_ = np.zeros((2,186))
     if model.fit_intercept:
         model.intercept_ = np.zeros((2,))
     
@@ -74,16 +78,27 @@ class LogisticRegressionClient(fl.client.NumPyClient):
     
     def get_parameters(self,config):
         print("Client "+str(self.cid)+" is getting parameters")
+        
         return get_model_parameters(self.model)
     
-    def fit_model(self,parameters,config):
-        set_model_params(model=self.model, params = parameters)
-
+    def fit(self,parameters,config):
+        start = time.time()
+        print("Client "+str(self.cid)+" is fitting")
+        print("Parameters", parameters)
+        model = set_model_params(model=self.model, params = parameters)
+        idx = np.random.choice(len(self.X_train), size=int(0.2 * len(self.X_train)), replace=False)
+        X_train_subset = self.X_train[idx]
+        y_train_subset = self.y_train[idx]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.model.fit(self.X_train, self.y_train)
-            print("Training finished for round"+str(config["current_round"]))
-        return get_model_parameters(self.model), len(self.X_train), {}
+            model.fit(X_train_subset, y_train_subset)
+            print("Training finished for round")
+        print ("Parameters: ", self.get_parameters(model))
+        print("Type of parameters: ", type(self.get_parameters(model)))
+        param_out = self.get_parameters(model)
+        end = time.time()
+        print("Time taken for fitting: ", end-start)
+        return param_out, len(X_train_subset), {}
     
     def evaluate_model(self,parameters,config):
         set_model_params(model=self.model, params = parameters)

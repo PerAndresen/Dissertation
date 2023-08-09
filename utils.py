@@ -57,7 +57,7 @@ def load_data() -> Dataset:
     normal_df = pd.read_csv('datasets/ptbdb_normal.csv', header=None)
     abnormal_df = pd.read_csv('datasets/ptbdb_abnormal.csv', header=None)
     df = pd.concat([normal_df, abnormal_df], axis=0, ignore_index=True)
-    print(df.shape)
+    #print(df.shape)
     #Shuffle the data
     df = df.sample(df.shape[0], random_state=42)
     #X values should be until row 187

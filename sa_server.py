@@ -227,7 +227,7 @@ class SecureAggregationStrategy(Strategy):
                 masked_vector, 3, 1 << 16)
             #print(aggregated_vector[:4])
             aggregated_parameters = ndarrays_to_parameters(aggregated_vector)
-
+            print("Aggregated parameters at the server:", aggregated_parameters)
             self.stage = 0
             return aggregated_parameters, {}
 
@@ -303,8 +303,8 @@ print("Server IP: "+str(server_ip))
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser(description='Federated Learning')
-parser.add_argument('--rounds', type=int, default=20)
-parser.add_argument('--clients', type=int, default=10)
+parser.add_argument('--rounds', type=int, default=5)
+parser.add_argument('--clients', type=int, default=2)
 parser.add_argument('--min_sample_size', type=int, default=2)
 parser.add_argument('--sample_fraction', type=float, default=1.0)
 parser.add_argument('--server_address', type=str, default="0.0.0.0:8080")
