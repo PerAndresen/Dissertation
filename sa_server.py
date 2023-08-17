@@ -235,61 +235,15 @@ class SecureAggregationStrategy(Strategy):
 
         return None, {}
     def configure_evaluate(self, server_round, parameters, client_manager):
-        '''
-        clients = client_manager.sample(num_clients=10, min_num_clients=5)
-        eval_ins = [fl.common.EvaluateIns(parameters, {"server_round":server_round})]*len(clients)
-        return list(zip(clients, eval_ins))
-        '''
         return []
 
     def aggregate_evaluate(self, server_round, eval_metrics, failures):
-        '''print(eval_metrics)
-        total_accuracy = 0
-        total_examples = 0
-        total_loss = 0
-        for _, evaluate_res in eval_metrics:
-            print("Num examples",evaluate_res.num_examples)
-            accuracy = evaluate_res.metrics['accuracy']
-            num_examples = evaluate_res.num_examples
-            total_accuracy += accuracy *num_examples
-            total_examples += num_examples
-            total_loss += evaluate_res.loss * num_examples
-        if total_examples == 0:
-            return None
-        aggregated_metric = total_accuracy / total_examples
-        aggregated_loss = total_loss /total_examples
-        return aggregated_loss,{'accuracy':aggregated_metric}
-        """Not aggregating any evaluation.""" '''
         return None
 
     def evaluate(self, server_round, parameters):
         #eval_metrics = client_manager.evaluate(parameters)
         #aggregated_loss, aggregated_metric = self.aggregate_evaluate(eval_metrics=eval_metrics,failures=None)
-        #return aggregated_loss, aggregated_metric
-        '''
-        results = client_manager.evaluate(parameters)
-        
-        X, y = load_data()
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.2)
-        model = LogisticRegression(random_state=0, max_iter=1000)
-        model.fit(X_train, y_train)
-        set_model_params(model, parameters)
-    
-        #model_with_params = get_model_parameters(model)
-        print("Parameters on server evaluation:", parameters)
-
-        model_with_params = get_model_parameters(model)
-        #model_with_params = set_model_params(model, parameters_to_ndarrays(parameters))
-        #model_with_params.fit(X_train, y_train)
-        unique_classes = np.unique(y)
-        model_with_params.classes_ = unique_classes
-        y_pred = model_with_params.predict(X_test)
-        loss = log_loss(y_test, y_pred)
-        accuracy = model_with_params.score(X_test, y_test)
-        return loss, {"accuracy": accuracy}
-        '''
-        
-        """Not running any centralized evaluation."""
+        #return aggregated_loss, aggregated_metrics
         return None
 
 def get_server_ip():
@@ -336,34 +290,15 @@ parameters = {
 def main() -> None:
     """Create model and create and start server."""
     print(args)
-    #model = LogisticRegression(random_state=0, max_iter=1000)
-    #set_initial_params(model)
-    #params = get_model_parameters(model)
     client_manager = fl.server.SimpleClientManager()
     sa_strategy = SecureAggregationStrategy(
         num_samples=args.clients,
         threshold=args.min_sample_size,
         num_dropouts=0,
     )
-    '''
-    strategy = fl.server.strategy.FedAvg(
-        num_samples=args.clients,
-        threshold=args.min_sample_size,
-        num_dropouts=0,
-       # fraction_fit=args.sample_fraction,
-       # min_fit_clients=args.min_sample_size,
-        min_available_clients=2,
-        evaluate_fn=get_eval_fn(model),
-        on_fit_config_fn=fit_round,
-        #initial_parameters=fl.common.ndarrays_to_parameters(params)
-    )
-    '''
     server = fl.server.Server(client_manager=client_manager, strategy=sa_strategy)
     fl.server.start_server(
-        #num_samples=args.clients,
-        #server_address=server_ip+":8080",
         server_address=args.server_address, 
-        #server=server,
         client_manager = client_manager,
         config=fl.server.ServerConfig(num_rounds=args.rounds),
         strategy= sa_strategy
